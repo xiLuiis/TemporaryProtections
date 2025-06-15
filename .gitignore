@@ -1,0 +1,10 @@
+# Ignora archivos y carpetas generados automáticamente
+/target/
+/.vscode/
+*.class
+*.jar
+# Ignora archivos de sistema
+.DS_Store
+Thumbs.db
+# Ignora archivos de configuración de entorno
+.env
