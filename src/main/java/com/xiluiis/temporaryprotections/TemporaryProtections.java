@@ -9,8 +9,8 @@
 
 package com.xiluiis.temporaryprotections;
 
-import com.xiluiis.temporaryprotections.TemporaryRegionManager;
-import com.xiluiis.temporaryprotections.ProtectionListener;
+// import com.xiluiis.temporaryprotections.TemporaryRegionManager;
+// import com.xiluiis.temporaryprotections.ProtectionListener;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -29,13 +29,15 @@ import java.util.*;
 public class TemporaryProtections extends JavaPlugin implements Listener {
 
     private final Map<UUID, Set<String>> playerEvents = new HashMap<>();
+    private ConfigManager configManager; // <--- referencia global
 
     @Override
     public void onEnable() {
-        
+        saveDefaultConfig(); // <--- Esto asegura que config.yml exista
+
+        configManager = new ConfigManager(this);
         TemporaryRegionManager regionManager = new TemporaryRegionManager(this);
-        
-        Bukkit.getPluginManager().registerEvents(new ProtectionListener(this, regionManager), this);
+        Bukkit.getPluginManager().registerEvents(new ProtectionListener(this, regionManager, configManager), this);
 
         this.getCommand("tmpp").setExecutor(this);
         getLogger().info("Plugin TemporaryProtections activado.");
@@ -68,12 +70,12 @@ public class TemporaryProtections extends JavaPlugin implements Listener {
     }
 
     private void mostrarAyuda(Player player) {
-        player.sendMessage(ChatColor.AQUA + "=== tp Help ===");
+        player.sendMessage(ChatColor.AQUA + "=== TemporaryProtections Help ===");
         player.sendMessage(ChatColor.YELLOW + "/tmpp help" + ChatColor.WHITE + " - Muestra este mensaje.");
-        player.sendMessage(ChatColor.YELLOW + "/tmpp enable <evento> yes|no" + ChatColor.WHITE + " - Activa o desactiva un evento.");
+        player.sendMessage(ChatColor.YELLOW + "/tmpp enable <evento> yes | no" + ChatColor.WHITE + " - Activa o desactiva un evento.");
         player.sendMessage(ChatColor.GRAY + "Ejemplo: /tmpp enable blockcoords yes");
         player.sendMessage(ChatColor.YELLOW + "Eventos disponibles: blockcoords");
-        player.sendMessage(ChatColor.YELLOW + "Usa /tmpp debug para ver el estado de ProtectionStones.");
+        player.sendMessage(ChatColor.YELLOW + "Usa /tmpp debug para ver el estado de ProtectionStones y más datos.");
     }
 
     private void ejecutarDebug(Player player) {
@@ -122,5 +124,5 @@ public class TemporaryProtections extends JavaPlugin implements Listener {
             player.sendMessage(ChatColor.YELLOW + "Uso: /tmpp enable <evento> yes|no");
         }
     }
-
+    
 }
