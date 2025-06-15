@@ -1,3 +1,5 @@
 # config.yml
 temporary-protection-seconds: 60
 debug-messages: true
+allowed-protection-blocks:
+  - "64"

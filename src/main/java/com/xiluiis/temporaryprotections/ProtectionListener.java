@@ -1,5 +1,6 @@
 package com.xiluiis.temporaryprotections;
 
+//import java.io.ObjectInputFilter.Config;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -28,13 +29,16 @@ import dev.espi.protectionstones.ProtectionStones;
 import dev.espi.protectionstones.event.PSRemoveEvent;
 
 public class ProtectionListener implements Listener {
+    
     private final TemporaryProtections plugin;
     private final TemporaryRegionManager regionManager;
     private final Set<UUID> enRegionTemporal = new HashSet<>();
+    private final ConfigManager configManager;
 
-    public ProtectionListener(TemporaryProtections plugin,TemporaryRegionManager regionManager) {
+    public ProtectionListener(TemporaryProtections plugin,TemporaryRegionManager regionManager, ConfigManager configManager) {
         this.regionManager = regionManager;
         this.plugin = plugin;
+        this.configManager = configManager;
     }
 
 @EventHandler
@@ -101,6 +105,19 @@ public class ProtectionListener implements Listener {
         PSRegion oldRegion = event.getRegion();
 
         if (player != null && oldRegion != null) {
+            // Obtener el tipo de bloque de la región eliminada
+            String blockType = oldRegion.getType(); 
+            PSProtectBlock psBlock = ProtectionStones.getBlockOptions(blockType);
+            if (psBlock == null) return;
+
+            String blockAlias = psBlock.alias;
+            player.sendMessage(ChatColor.GRAY + "El alias de la Protection Stone eliminada es: " + blockAlias);
+
+            if (!configManager.getAllowedProtectionBlocks().contains(blockAlias)) {
+                // No está en la lista, no crees región temporal
+                return;
+            }
+
             player.sendMessage(ChatColor.RED + "¡Has eliminado una protección! Se creará una protección temporal por 60 segundos.");
             plugin.getLogger().info("Se ejecutó onPSRemove para " + player.getName());
 
@@ -143,18 +160,27 @@ public class ProtectionListener implements Listener {
 
         String blockType = e.getBlockPlaced().getType().name();
         PSProtectBlock psBlock = ProtectionStones.getBlockOptions(blockType);
-
-        // Si está en región temporal y NO es piedra de protección, cancela
-        if (enTemporal && (psBlock == null || !ProtectionStones.isProtectBlockType(blockType))) {
+       
+        String blockAlias = (psBlock != null) ? psBlock.alias: null;
+        // Si está en región temporal y NO es piedra de protección permitida, cancela
+        if (enTemporal && (psBlock == null || !ProtectionStones.isProtectBlockType(blockType) ||!configManager.getAllowedProtectionBlocks().contains(blockAlias))) {
             e.setCancelled(true);
             player.sendMessage(ChatColor.RED + "Solo puedes colocar piedras de protección en una región temporal.");
             return;
         }
-
+        
+        
         // Calcula los límites de la nueva protección de PS usando los radios reales
         BlockVector3 placed = BlockVector3.at(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
-        
+
+        player.sendMessage(ChatColor.GRAY + "El alias de este bloque de protección es: " + blockAlias);
+
+        if (!configManager.getAllowedProtectionBlocks().contains(blockAlias)) {
+            // No está en la lista, no crees/elimines regiones temporales, pero tampoco bloquees la acción
+            return;
+        }
         if(psBlock == null) {
+            
             return;
         }
 
