@@ -153,6 +153,11 @@ public class ProtectionListener implements Listener {
 
         // Calcula los límites de la nueva protección de PS usando los radios reales
         BlockVector3 placed = BlockVector3.at(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
+        
+        if(psBlock == null) {
+            return;
+        }
+
         int xRadius = psBlock.xRadius;
         int yRadius = psBlock.yRadius;
         int zRadius = psBlock.zRadius;
