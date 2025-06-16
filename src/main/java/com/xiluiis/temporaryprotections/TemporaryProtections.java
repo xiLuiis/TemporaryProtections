@@ -17,112 +17,119 @@ import org.bukkit.ChatColor;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
+//import org.bukkit.entity.Player;
 import org.bukkit.event.*;
 
 import org.bukkit.plugin.java.JavaPlugin;
 
-import dev.espi.protectionstones.PSRegion;
+//import dev.espi.protectionstones.PSRegion;
 
-import java.util.*;
+//import java.util.*;
 
 public class TemporaryProtections extends JavaPlugin implements Listener {
 
-    private final Map<UUID, Set<String>> playerEvents = new HashMap<>();
+    private DebugManager debugManager;
     private ConfigManager configManager; // <--- referencia global
+    private TemporaryRegionManager regionManager;
 
     @Override
     public void onEnable() {
         saveDefaultConfig(); // <--- Esto asegura que config.yml exista
 
         configManager = new ConfigManager(this);
-        TemporaryRegionManager regionManager = new TemporaryRegionManager(this);
-        Bukkit.getPluginManager().registerEvents(new ProtectionListener(this, regionManager, configManager), this);
+        debugManager = new DebugManager();
+        regionManager = new TemporaryRegionManager(this);
+        Bukkit.getPluginManager().registerEvents(new ProtectionListener(this, regionManager, configManager, debugManager), this);
 
         this.getCommand("tmpp").setExecutor(this);
         getLogger().info("Plugin TemporaryProtections activado.");
+
+        // --- Limpieza y temporización de regiones temp_ al iniciar el plugin ---
+        int tempSeconds = configManager.getTemporaryProtectionSeconds();
+        for (org.bukkit.World world : getServer().getWorlds()) {
+            com.sk89q.worldguard.protection.managers.RegionManager wgRegionManager =
+                com.sk89q.worldguard.WorldGuard.getInstance().getPlatform().getRegionContainer().get(
+                    com.sk89q.worldedit.bukkit.BukkitAdapter.adapt(world));
+            if (wgRegionManager == null) continue;
+            for (String regionId : wgRegionManager.getRegions().keySet()) {
+                if (regionId.startsWith("temp_")) {
+                    com.sk89q.worldguard.protection.regions.ProtectedRegion region = wgRegionManager.getRegion(regionId);
+                    // Asigna temporizador para eliminar la región después de tempSeconds
+                    regionManager.scheduleTempRegionRemoval(wgRegionManager, regionId, tempSeconds);
+                    getLogger().info("[TemporaryProtections] Región temporal encontrada al iniciar: " + regionId + " en mundo " + world.getName() + ". Se eliminará en " + tempSeconds + " segundos.");
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onDisable() {
+        // Ya no se guarda/carga tempregions.yml
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage("Este comando solo puede usarse en el juego.");
-            return true;
-        }
-
         if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
-            mostrarAyuda(player);
+            mostrarAyuda(sender);
             return true;
         }
 
-        if (args.length == 1 && args[0].equalsIgnoreCase("debug")) {
-            ejecutarDebug(player);
+        if (args[0].equalsIgnoreCase("info")) {
+            debugManager.showInfo(sender);
             return true;
         }
 
-        if (args.length == 3 && args[0].equalsIgnoreCase("enable")) {
-            manejarEnable(player, args[1], args[2]);
+        if ((args[0].equalsIgnoreCase("enable") || args[0].equalsIgnoreCase("disable")) && args.length > 1) {
+            if (!sender.hasPermission("temporaryprotections.admin")) {
+                sender.sendMessage(ChatColor.RED + "No tienes permiso para este comando.");
+                return true;
+            }
+            boolean enable = args[0].equalsIgnoreCase("enable");
+            debugManager.handleToggle(sender, args[1], enable);
             return true;
         }
 
-        player.sendMessage(ChatColor.YELLOW + "Usa /tmpp help para ver los comandos.");
+        if (args[0].equalsIgnoreCase("debug")) {
+            if (!sender.hasPermission("temporaryprotections.admin")) {
+                sender.sendMessage(ChatColor.RED + "No tienes permiso para este comando.");
+                return true;
+            }
+            debugManager.showDebugOptions(sender);
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("reload")) {
+            if (!sender.hasPermission("temporaryprotections.admin")) {
+                sender.sendMessage(ChatColor.RED + "No tienes permiso para este comando.");
+                return true;
+            }
+            reloadConfig();
+            sender.sendMessage(ChatColor.GREEN + "Configuración recargada.");
+            return true;
+        }
+
+        sender.sendMessage(ChatColor.YELLOW + "Usa /tmpp help para ver los comandos.");
         return true;
     }
 
-    private void mostrarAyuda(Player player) {
-        player.sendMessage(ChatColor.AQUA + "=== TemporaryProtections Help ===");
-        player.sendMessage(ChatColor.YELLOW + "/tmpp help" + ChatColor.WHITE + " - Muestra este mensaje.");
-        player.sendMessage(ChatColor.YELLOW + "/tmpp enable <evento> yes | no" + ChatColor.WHITE + " - Activa o desactiva un evento.");
-        player.sendMessage(ChatColor.GRAY + "Ejemplo: /tmpp enable blockcoords yes");
-        player.sendMessage(ChatColor.YELLOW + "Eventos disponibles: blockcoords");
-        player.sendMessage(ChatColor.YELLOW + "Usa /tmpp debug para ver el estado de ProtectionStones y más datos.");
-    }
-
-    private void ejecutarDebug(Player player) {
-        org.bukkit.plugin.PluginManager pm = Bukkit.getPluginManager();
-        boolean psActivo = pm.isPluginEnabled("ProtectionStones");
-
-        if (psActivo) {
-            player.sendMessage(ChatColor.GREEN + "ProtectionStones está ACTIVADO en el servidor.");
-
-            PSRegion region = PSRegion.fromLocation(player.getLocation());
-            if (region != null) {
-                player.sendMessage(ChatColor.AQUA + "¡Estás dentro de una zona de ProtectionStones!");
-                List<UUID> owners = region.getOwners();
-                if (!owners.isEmpty()) {
-                    player.sendMessage(ChatColor.GRAY + "Dueño: " + owners.get(0));
-                } else {
-                    player.sendMessage(ChatColor.GRAY + "Sin dueño principal.");
-                }
-            } else {
-                player.sendMessage(ChatColor.YELLOW + "No estás en una zona de ProtectionStones.");
-            }
-        } else {
-            player.sendMessage(ChatColor.RED + "ProtectionStones NO está activo en el servidor.");
+    private void mostrarAyuda(CommandSender sender) {
+        sender.sendMessage(ChatColor.AQUA + "=== TemporaryProtections Help ===");
+        sender.sendMessage(ChatColor.YELLOW + "/tmpp help" + ChatColor.WHITE + " - Muestra este mensaje.");
+        sender.sendMessage(ChatColor.YELLOW + "/tmpp info" + ChatColor.WHITE + " - Muestra tus opciones de debug activas.");
+        if (sender.hasPermission("temporaryprotections.admin")) {
+            sender.sendMessage(ChatColor.YELLOW + "/tmpp enable <opcion>" + ChatColor.WHITE + " - Activa una opción de debug (admin).");
+            sender.sendMessage(ChatColor.YELLOW + "/tmpp disable <opcion>" + ChatColor.WHITE + " - Desactiva una opción de debug (admin).");
+            sender.sendMessage(ChatColor.YELLOW + "/tmpp debug" + ChatColor.WHITE + " - Lista las opciones de debug disponibles (admin).");
+            sender.sendMessage(ChatColor.YELLOW + "/tmpp reload" + ChatColor.WHITE + " - Recarga la configuración (admin).");
         }
     }
 
-    private void manejarEnable(Player player, String evento, String opcion) {
-        String eventName = evento.toLowerCase();
-        String option = opcion.toLowerCase();
-
-        if (!eventName.equals("blockcoords")) {
-            player.sendMessage(ChatColor.RED + "Evento desconocido. Usa /tmpp help para ver los eventos.");
-            return;
-        }
-
-        playerEvents.putIfAbsent(player.getUniqueId(), new HashSet<>());
-        Set<String> enabled = playerEvents.get(player.getUniqueId());
-
-        if (option.equals("yes")) {
-            enabled.add(eventName);
-            player.sendMessage(ChatColor.GREEN + "Evento '" + eventName + "' activado.");
-        } else if (option.equals("no")) {
-            enabled.remove(eventName);
-            player.sendMessage(ChatColor.RED + "Evento '" + eventName + "' desactivado.");
-        } else {
-            player.sendMessage(ChatColor.YELLOW + "Uso: /tmpp enable <evento> yes|no");
-        }
+    // Método para exponer el DebugManager a los listeners
+    public DebugManager getDebugManager() {
+        return debugManager;
     }
     
+    public TemporaryRegionManager getRegionManager() {
+        return regionManager;
+    }
 }
