@@ -123,18 +123,19 @@ public class TemporaryRegionManager {
             int tiempo = tiempoInicial;
             @Override
             public void run() {
+                String baseMsg = "§6[TemporaryProtections] §eLas protecciones que sean §b§lTEMPORALES§e y tengan el dueño §4§lDESCONOCIDO§e serán eliminadas automáticamente";
                 if (tiempo == tiempoInicial) {
-                    String msg = "§6[TemporaryProtections] §c¡Atención! §eLas regiones que sean §b§lTEMPORALES§e y tengan §4§lDUEÑO DESCONOCIDO§e serán eliminadas automáticamente en §b" + tiempo + "§e segundos.";
+                    String msg = baseMsg + " en §b" + tiempo + "§e segundos.";
                     for (org.bukkit.entity.Player p : plugin.getServer().getOnlinePlayers()) {
                         p.sendMessage(msg);
                     }
                 } else if (tiempo == 60) {
-                    String msg = "§6[TemporaryProtections] §eLas regiones §b§lTEMPORALES§e y con §4§lDUEÑO DESCONOCIDO§e serán eliminadas en §b60§e segundos. Si es tuya, reclama antes de que desaparezca.";
+                    String msg = baseMsg + " en §b60§e segundos. Si es tuya, reclama antes de que desaparezca.";
                     for (org.bukkit.entity.Player p : plugin.getServer().getOnlinePlayers()) {
                         p.sendMessage(msg);
                     }
                 } else if (tiempo == 30 || tiempo == 10 || (tiempo <= 5 && tiempo > 0)) {
-                    String msg = "§6[TemporaryProtections] §eRegiones §b§lTEMPORALES§e y §4§lDUEÑO DESCONOCIDO§e serán eliminadas en §b" + tiempo + "§e segundos.";
+                    String msg = baseMsg + " en §b" + tiempo + "§e segundos.";
                     for (org.bukkit.entity.Player p : plugin.getServer().getOnlinePlayers()) {
                         p.sendMessage(msg);
                     }

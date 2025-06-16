@@ -253,4 +253,22 @@ public class ProtectionListener implements Listener {
             plugin.getLogger().fine("ProtectionListener cargado correctamente.");
         }
     }
+
+    @EventHandler
+    public void onEntityDamage(org.bukkit.event.entity.EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        Location loc = player.getLocation();
+        RegionManager wgRegionManager = WorldGuard.getInstance()
+            .getPlatform()
+            .getRegionContainer()
+            .get(BukkitAdapter.adapt(loc.getWorld()));
+        if (wgRegionManager == null) return;
+        Set<ProtectedRegion> regions = wgRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions();
+        for (ProtectedRegion region : regions) {
+            if (region.getId().startsWith("temp_")) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+    }
 }
