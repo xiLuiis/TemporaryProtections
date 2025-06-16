@@ -2,7 +2,7 @@ name: TemporaryProtections
 main: com.xiluiis.temporaryprotections.TemporaryProtections
 author: xShadowsystem
 description: Plugin para gestionar protecciones temporales en eventos de Minecraft
-version: 1.0
+version: 1.0.0-beta
 api-version: 1.20
 depend: [WorldGuard]
 commands:
