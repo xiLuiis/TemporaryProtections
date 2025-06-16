@@ -53,8 +53,6 @@ public class TemporaryRegionManager {
         tempRegionOwners.put(tempRegionId, player.getUniqueId());
         tempRegionTimers.put(tempRegionId, segundos);
 
-        player.sendMessage(ChatColor.GREEN + "¡Protección temporal de WorldGuard creada!");
-
         // Cuenta regresiva y eliminación automática
         new BukkitRunnable() {
             int tiempo = segundos;
@@ -68,7 +66,6 @@ public class TemporaryRegionManager {
                 tempRegionTimers.put(tempRegionId, tiempo);
 
                 if (tiempo == 30 || tiempo == 10 || (tiempo <= 5 && tiempo > 0)) {
-                    // Envía mensaje a todos los jugadores dentro de la región
                     UUID owner = tempRegionOwners.get(tempRegionId);
                     for (Player p : Bukkit.getOnlinePlayers()) {
                         Location loc = p.getLocation();
@@ -80,13 +77,35 @@ public class TemporaryRegionManager {
                                 break;
                             }
                         }
-                        // Envía el mensaje si el jugador está en la región o es el dueño
-                        if (isInRegion || (owner != null && p.getUniqueId().equals(owner))) {
-                            p.sendMessage(ChatColor.RED + "¡La protección temporal se eliminará en " + tiempo + " segundos!");
+                        if (owner != null && p.getUniqueId().equals(owner)) {
+                            p.sendMessage(ChatColor.LIGHT_PURPLE + "¡Tu protección temporal se eliminará en " + tiempo + " segundos!");
+                        } else if (isInRegion) {
+                            p.sendMessage(ChatColor.RED + "¡La protección temporal donde estás se eliminará en " + tiempo + " segundos!");
                         }
                     }
                 }
                 if (tiempo <= 0) {
+                    UUID owner = tempRegionOwners.get(tempRegionId);
+                    if (owner != null) {
+                        Player ownerPlayer = plugin.getServer().getPlayer(owner);
+                        if (ownerPlayer != null && ownerPlayer.isOnline()) {
+                            ownerPlayer.sendMessage(ChatColor.LIGHT_PURPLE + "¡§lTu protección temporal ha sido eliminada!§r");
+                        }
+                    }
+                    for (org.bukkit.entity.Player p : plugin.getServer().getOnlinePlayers()) {
+                        Location loc = p.getLocation();
+                        Set<ProtectedRegion> regions = regionManager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions();
+                        boolean isInRegion = false;
+                        for (ProtectedRegion region : regions) {
+                            if (region.getId().equals(tempRegionId)) {
+                                isInRegion = true;
+                                break;
+                            }
+                        }
+                        if (isInRegion && (owner == null || !p.getUniqueId().equals(owner))) {
+                            p.sendMessage(ChatColor.RED + "¡§lLa protección temporal donde estabas parado ha sido eliminada!§r");
+                        }
+                    }
                     regionManager.removeRegion(tempRegionId);
                     tempRegionOwners.remove(tempRegionId);
                     tempRegionTimers.remove(tempRegionId);
@@ -94,6 +113,65 @@ public class TemporaryRegionManager {
                 }
             }
         }.runTaskTimer(plugin, 20, 20); // Cada segundo
+    }
+
+    // Programa la eliminación de una región temp_ huérfana tras X segundos
+    public void scheduleTempRegionRemoval(RegionManager regionManager, String regionId, int segundos) {
+        // Forzar 90 segundos para regiones huérfanas
+        int tiempoInicial = 90;
+        new BukkitRunnable() {
+            int tiempo = tiempoInicial;
+            @Override
+            public void run() {
+                if (tiempo == tiempoInicial) {
+                    String msg = "§6[TemporaryProtections] §c¡Atención! §eLas regiones que sean §b§lTEMPORALES§e y tengan §4§lDUEÑO DESCONOCIDO§e serán eliminadas automáticamente en §b" + tiempo + "§e segundos.";
+                    for (org.bukkit.entity.Player p : plugin.getServer().getOnlinePlayers()) {
+                        p.sendMessage(msg);
+                    }
+                } else if (tiempo == 60) {
+                    String msg = "§6[TemporaryProtections] §eLas regiones §b§lTEMPORALES§e y con §4§lDUEÑO DESCONOCIDO§e serán eliminadas en §b60§e segundos. Si es tuya, reclama antes de que desaparezca.";
+                    for (org.bukkit.entity.Player p : plugin.getServer().getOnlinePlayers()) {
+                        p.sendMessage(msg);
+                    }
+                } else if (tiempo == 30 || tiempo == 10 || (tiempo <= 5 && tiempo > 0)) {
+                    String msg = "§6[TemporaryProtections] §eRegiones §b§lTEMPORALES§e y §4§lDUEÑO DESCONOCIDO§e serán eliminadas en §b" + tiempo + "§e segundos.";
+                    for (org.bukkit.entity.Player p : plugin.getServer().getOnlinePlayers()) {
+                        p.sendMessage(msg);
+                    }
+                } else if (tiempo == 0) {
+                    // Mensaje personalizado al eliminar la protección
+                    UUID owner = getTempRegionOwner(regionId);
+                    if (owner != null) {
+                        Player ownerPlayer = plugin.getServer().getPlayer(owner);
+                        if (ownerPlayer != null && ownerPlayer.isOnline()) {
+                            ownerPlayer.sendMessage(ChatColor.LIGHT_PURPLE + "¡§lTu protección temporal ha sido eliminada!§r");
+                        }
+                    }
+                    for (org.bukkit.entity.Player p : plugin.getServer().getOnlinePlayers()) {
+                        Location loc = p.getLocation();
+                        RegionManager wgRegionManager = com.sk89q.worldguard.WorldGuard.getInstance()
+                            .getPlatform()
+                            .getRegionContainer()
+                            .get(BukkitAdapter.adapt(loc.getWorld()));
+                        if (wgRegionManager != null) {
+                            Set<ProtectedRegion> regions = wgRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions();
+                            for (ProtectedRegion region : regions) {
+                                if (region.getId().equals(regionId)) {
+                                    if (owner == null || !p.getUniqueId().equals(owner)) {
+                                        p.sendMessage(ChatColor.RED + "¡§lLa protección temporal donde estabas parado ha sido eliminada!§r");
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    regionManager.removeRegion(regionId);
+                    plugin.getLogger().info("[TemporaryProtections] Región temporal eliminada automáticamente: " + regionId);
+                    cancel();
+                }
+                tiempo--;
+            }
+        }.runTaskTimer(plugin, 20, 20);
     }
 
     public boolean regionsOverlap(BlockVector3 minA, BlockVector3 maxA, BlockVector3 minB, BlockVector3 maxB) {
