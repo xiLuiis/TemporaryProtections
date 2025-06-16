@@ -1,18 +1,18 @@
 # TemporaryProtections
 
 ## Descripción
-TemporaryProtections es un plugin para servidores Minecraft (Spigot/Paper) que permite gestionar regiones de protección temporal utilizando ProtectionStones. Ofrece protección total contra daños en regiones temporales, mensajes personalizables y limpieza automática de regiones huérfanas.
+TemporaryProtections es un plugin para servidores Minecraft (Spigot/Paper) que permite gestionar regiones de protección temporal utilizando ProtectionStones. Permite proteger zonas por tiempo limitado, con mensajes personalizables (en desarrollo) y limpieza automática de regiones que ya no tienen dueño.
 
 ## Características
 - Protección temporal de regiones basada en ProtectionStones.
 - Duración configurable para cada protección.
 - Protección total contra cualquier tipo de daño dentro de regiones temporales.
 - Limpieza automática de regiones temporales huérfanas.
-- Mensajes personalizables desde `config.yml`.
+- Mensajes personalizables desde `config.yml` (en desarrollo).
 - Comandos y permisos diferenciados para administración y usuarios.
 
 ## Dependencias
-- [ProtectionStones](https://www.spigotmc.org/resources/protectionstones.61797/) (requerido)
+- ProtectionStones (requerido)
 - Servidor Spigot o Paper compatible
 
 ## Instalación
@@ -25,6 +25,18 @@ TemporaryProtections es un plugin para servidores Minecraft (Spigot/Paper) que p
 - Utiliza `/tmpp` y sus subcomandos para gestionar protecciones temporales.
 - Configura los parámetros y mensajes en `plugins/TemporaryProtections/config.yml`.
 
+## Comandos principales
+- `/tmpp help` — Muestra la ayuda general del plugin.
+- `/tmpp info` — Muestra tus opciones de debug activas.
+- `/tmpp enable <opcion>` — Activa una opción de debug (requiere permiso de admin).
+- `/tmpp disable <opcion>` — Desactiva una opción de debug (requiere permiso de admin).
+- `/tmpp debug` — Lista las opciones de debug disponibles (requiere permiso de admin).
+- `/tmpp reload` — Recarga la configuración del plugin (requiere permiso de admin).
+
+## Permisos
+- `temporaryprotections.admin` — Requerido para acceder a los comandos de administración y debug.
+- `temporaryprotections.admin.bypass` — Permite saltarse restricciones en regiones temporales.
+
 ## Notas
 - Actualmente solo funciona con ProtectionStones.
-- Se planean futuras mejoras para mayor flexibilidad y compatibilidad.
+- Se planean mejoras para hacerlo más flexible y compatible en el futuro.
