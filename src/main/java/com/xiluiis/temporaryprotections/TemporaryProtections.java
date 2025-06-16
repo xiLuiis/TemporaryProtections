@@ -53,7 +53,6 @@ public class TemporaryProtections extends JavaPlugin implements Listener {
             if (wgRegionManager == null) continue;
             for (String regionId : wgRegionManager.getRegions().keySet()) {
                 if (regionId.startsWith("temp_")) {
-                    com.sk89q.worldguard.protection.regions.ProtectedRegion region = wgRegionManager.getRegion(regionId);
                     // Asigna temporizador para eliminar la región después de tempSeconds
                     regionManager.scheduleTempRegionRemoval(wgRegionManager, regionId, tempSeconds);
                     getLogger().info("[TemporaryProtections] Región temporal encontrada al iniciar: " + regionId + " en mundo " + world.getName() + ". Se eliminará en " + tempSeconds + " segundos.");
