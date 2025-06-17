@@ -17,8 +17,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
+//import org.bukkit.event.entity.EntityDamageByEntityEvent;
+//import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -305,6 +305,7 @@ public class ProtectionListener implements Listener {
     @EventHandler
     public void onPlayerBucketEmpty(PlayerBucketEmptyEvent event) {
         Player player = event.getPlayer();
+        if (player.hasPermission("temporaryprotections.admin.bypass")) return;
         Location loc = event.getBlock().getLocation();
         RegionManager wgRegionManager = WorldGuard.getInstance()
             .getPlatform()
@@ -315,7 +316,7 @@ public class ProtectionListener implements Listener {
         for (ProtectedRegion region : regions) {
             if (region.getId().startsWith("temp_")) {
                 Material bucket = event.getBucket();
-                // Bloquear cualquier cubo excepto milk_bucket
+                // Bloquear cualquier cubo excepto milk_bucket, pero permitir a admins
                 if (bucket.name().contains("BUCKET") && !bucket.name().contains("MILK")) {
                     event.setCancelled(true);
                     player.sendMessage(ChatColor.RED + "No puedes vaciar cubos en una región temporal.");
