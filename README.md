@@ -23,7 +23,10 @@ TemporaryProtections es un plugin para servidores Minecraft (Spigot/Paper) que p
 
 ## Uso
 - Utiliza `/tmpp` y sus subcomandos para gestionar protecciones temporales.
-- Configura los parámetros en `plugins/TemporaryProtections/config.yml`.
+- Configura los parámetros en `plugins/TemporaryProtections/config.yml`:
+  - allowed-protection-blocks: Lista los alias de los bloques de ProtectionStones que activarán la protección temporal (por ejemplo, emerald_block, 64, 20).
+  - temporary-protection-seconds: Define la duración (en segundos) de la protección temporal (por ejemplo, 60).
+  - debug-messages: Ponlo en true para activar mensajes de depuración en consola y facilitar el diagnóstico del plugin.
 
 ## Comandos principales
 - `/tmpp help` — Muestra la ayuda general del plugin.
