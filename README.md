@@ -41,3 +41,4 @@ TemporaryProtections es un plugin para servidores Minecraft (Spigot/Paper) que p
 - Actualmente solo funciona con ProtectionStones.
 - Se planean mejoras para hacerlo más flexible y compatible en el futuro.
 - Puedes descargarlo también en: https://www.spigotmc.org/resources/temporaryprotections.126123/.
+- Compatible con Minecraft 1.21.5 (Spigot/Paper)
