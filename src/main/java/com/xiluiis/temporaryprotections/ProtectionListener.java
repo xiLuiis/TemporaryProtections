@@ -279,12 +279,27 @@ public class ProtectionListener implements Listener {
             .get(BukkitAdapter.adapt(loc.getWorld()));
         if (wgRegionManager == null) return;
         Set<ProtectedRegion> regions = wgRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions();
+        boolean enTemporal = false;
         for (ProtectedRegion region : regions) {
             if (region.getId().startsWith("temp_")) {
+                enTemporal = true;
+                break;
+            }
+        }
+        if (!enTemporal) return;
+
+        // Permitir daño de mobs (PvE), bloquear solo PvP y daño ambiental
+        if (event instanceof org.bukkit.event.entity.EntityDamageByEntityEvent edbe) {
+            if (edbe.getDamager() instanceof Player) {
+                // PvP: bloquear
                 event.setCancelled(true);
                 return;
             }
+            // Si el daño es causado por un mob, permitir
+            return;
         }
+        // Daño ambiental (caída, fuego, etc.): bloquear
+        event.setCancelled(true);
     }
 
     @EventHandler
