@@ -8,7 +8,7 @@ import java.util.*;
 
 public class DebugManager {
     private final Map<UUID, Set<String>> debugOptions = new HashMap<>();
-    private final List<String> opcionesDebug = Arrays.asList("overlap", "regioncreate", "broadcast");
+    private final List<String> opcionesDebug = Arrays.asList("overlap", "regioncreate", "broadcast", "explosion");
 
     // Opción global de debug para logs internos del plugin
     private final Set<String> globalDebugOptions = new HashSet<>();
@@ -44,6 +44,7 @@ public class DebugManager {
         sender.sendMessage(ChatColor.YELLOW + "overlap" + ChatColor.WHITE + " - Mensajes de solapamiento de regiones temporales.");
         sender.sendMessage(ChatColor.YELLOW + "regioncreate" + ChatColor.WHITE + " - Mensajes al crear regiones temporales.");
         sender.sendMessage(ChatColor.YELLOW + "broadcast" + ChatColor.WHITE + " - Mensajes globales de debug.");
+        sender.sendMessage(ChatColor.YELLOW + "explosion" + ChatColor.WHITE + " - Mensajes sobre eventos de explosión.");
     }
 
     public void showInfo(CommandSender sender) {
