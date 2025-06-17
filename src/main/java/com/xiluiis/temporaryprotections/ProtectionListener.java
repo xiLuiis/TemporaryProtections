@@ -10,12 +10,22 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
+//import org.bukkit.event.entity.EntityDamageByEntityEvent;
+//import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.entity.EnderCrystal;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
@@ -146,13 +156,11 @@ public class ProtectionListener implements Listener {
     public void onBlockPlace(BlockPlaceEvent e) {
         Player player = e.getPlayer();
         Location loc = e.getBlock().getLocation();
-
         RegionManager wgRegionManager = WorldGuard.getInstance()
             .getPlatform()
             .getRegionContainer()
             .get(BukkitAdapter.adapt(loc.getWorld()));
         if (wgRegionManager == null) return;
-
         Set<ProtectedRegion> regions = wgRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions();
         boolean enTemporal = false;
         for (ProtectedRegion region : regions) {
@@ -160,6 +168,13 @@ public class ProtectionListener implements Listener {
                 enTemporal = true;
                 break;
             }
+        }
+        Material placedType = e.getBlockPlaced().getType();
+        // Bloquear colocación de agua, lava y End Crystal en regiones temporales
+        if (enTemporal && (placedType == Material.WATER || placedType == Material.LAVA || placedType == Material.END_CRYSTAL)) {
+            e.setCancelled(true);
+            player.sendMessage(ChatColor.RED + "No puedes colocar agua, lava o End Crystals en una región temporal.");
+            return;
         }
 
         String blockType = e.getBlockPlaced().getType().name();
@@ -264,10 +279,172 @@ public class ProtectionListener implements Listener {
             .get(BukkitAdapter.adapt(loc.getWorld()));
         if (wgRegionManager == null) return;
         Set<ProtectedRegion> regions = wgRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions();
+        boolean enTemporal = false;
+        for (ProtectedRegion region : regions) {
+            if (region.getId().startsWith("temp_")) {
+                enTemporal = true;
+                break;
+            }
+        }
+        if (!enTemporal) return;
+
+        // Permitir daño de mobs (PvE), bloquear solo PvP y daño ambiental
+        if (event instanceof org.bukkit.event.entity.EntityDamageByEntityEvent edbe) {
+            if (edbe.getDamager() instanceof Player) {
+                // PvP: bloquear
+                event.setCancelled(true);
+                return;
+            }
+            // Si el daño es causado por un mob, permitir
+            return;
+        }
+        // Daño ambiental (caída, fuego, etc.): bloquear
+        event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onPlayerBucketEmpty(PlayerBucketEmptyEvent event) {
+        Player player = event.getPlayer();
+        if (player.hasPermission("temporaryprotections.admin.bypass")) return;
+        Location loc = event.getBlock().getLocation();
+        RegionManager wgRegionManager = WorldGuard.getInstance()
+            .getPlatform()
+            .getRegionContainer()
+            .get(BukkitAdapter.adapt(loc.getWorld()));
+        if (wgRegionManager == null) return;
+        Set<ProtectedRegion> regions = wgRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions();
+        for (ProtectedRegion region : regions) {
+            if (region.getId().startsWith("temp_")) {
+                Material bucket = event.getBucket();
+                // Bloquear cualquier cubo excepto milk_bucket, pero permitir a admins
+                if (bucket.name().contains("BUCKET") && !bucket.name().contains("MILK")) {
+                    event.setCancelled(true);
+                    player.sendMessage(ChatColor.RED + "No puedes vaciar cubos en una región temporal.");
+                    return;
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) return; // Solo main hand
+        Player player = event.getPlayer();
+        ItemStack item = event.getItem();
+        if (item == null) return;
+        Material mat = item.getType();
+        // Bloquear huevos de mobs hostiles y warden
+        if (mat.name().endsWith("_SPAWN_EGG")) {
+            // Lista de mobs hostiles y warden (puedes expandirla)
+            String[] hostiles = {"WARDEN", "CREEPER", "ZOMBIE", "SKELETON", "SPIDER", "ENDERMAN", "BLAZE", "WITHER", "PILLAGER", "VINDICATOR", "EVOKER", "RAVAGER", "SHULKER", "GUARDIAN", "ELDER_GUARDIAN", "DROWNED", "PHANTOM", "PIGLIN", "HOGLIN", "MAGMA_CUBE", "SLIME", "WITCH", "VEX", "VINDICATOR", "ILLUSIONER", "HUSK", "STRAY", "ZOMBIFIED_PIGLIN", "ZOMBIE_VILLAGER", "ZOMBIE_HORSE", "SILVERFISH", "GHAST", "ENDERMITE", "PILLAGER", "RAVAGER", "SHULKER", "VEX", "VINDICATOR", "WITHER_SKELETON", "ZOGLIN"};
+            String mob = mat.name().replace("_SPAWN_EGG", "");
+            for (String hostile : hostiles) {
+                if (mob.equalsIgnoreCase(hostile)) {
+                    Location loc = player.getLocation();
+                    RegionManager wgRegionManager = WorldGuard.getInstance()
+                        .getPlatform()
+                        .getRegionContainer()
+                        .get(BukkitAdapter.adapt(loc.getWorld()));
+                    if (wgRegionManager == null) return;
+                    Set<ProtectedRegion> regions = wgRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions();
+                    for (ProtectedRegion region : regions) {
+                        if (region.getId().startsWith("temp_")) {
+                            event.setCancelled(true);
+                            player.sendMessage(ChatColor.RED + "No puedes colocar huevos de mobs hostiles en una región temporal.");
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        // Bloquear uso de camas en Nether/End en regiones temporales
+        if (mat.name().contains("BED") || mat.name().contains("bed")) {
+            Location loc = event.getClickedBlock() != null ? event.getClickedBlock().getLocation() : player.getLocation();
+            String worldName = loc.getWorld().getName().toLowerCase();
+            if (worldName.contains("nether") || worldName.contains("end")) {
+                RegionManager wgRegionManager = WorldGuard.getInstance()
+                    .getPlatform()
+                    .getRegionContainer()
+                    .get(BukkitAdapter.adapt(loc.getWorld()));
+                if (wgRegionManager == null) return;
+                Set<ProtectedRegion> regions = wgRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions();
+                for (ProtectedRegion region : regions) {
+                    if (region.getId().startsWith("temp_")) {
+                        event.setCancelled(true);
+                        player.sendMessage(ChatColor.RED + "No puedes usar camas para explotar en una región temporal.");
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onEntityExplode(EntityExplodeEvent event) {
+        Location loc = event.getLocation();
+        RegionManager wgRegionManager = WorldGuard.getInstance()
+            .getPlatform()
+            .getRegionContainer()
+            .get(BukkitAdapter.adapt(loc.getWorld()));
+        if (wgRegionManager == null) return;
+        Set<ProtectedRegion> regions = wgRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions();
         for (ProtectedRegion region : regions) {
             if (region.getId().startsWith("temp_")) {
                 event.setCancelled(true);
+                // Debug: mostrar mundo y tipo de explosión
+                for (Player p : loc.getWorld().getPlayers()) {
+                    if (debugManager.isDebugOptionEnabled(p, "explosion")) {
+                        p.sendMessage(ChatColor.GRAY + "[DEBUG] Explosión cancelada en región temporal. Mundo: " + loc.getWorld().getName() + ", Tipo: EntityExplodeEvent");
+                    }
+                }
                 return;
+            }
+        }
+    }
+
+    @EventHandler
+    public void onBlockExplode(BlockExplodeEvent event) {
+        Location loc = event.getBlock().getLocation();
+        RegionManager wgRegionManager = WorldGuard.getInstance()
+            .getPlatform()
+            .getRegionContainer()
+            .get(BukkitAdapter.adapt(loc.getWorld()));
+        if (wgRegionManager == null) return;
+        Set<ProtectedRegion> regions = wgRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions();
+        for (ProtectedRegion region : regions) {
+            if (region.getId().startsWith("temp_")) {
+                event.setCancelled(true);
+                // Debug: mostrar mundo y tipo de explosión
+                for (Player p : loc.getWorld().getPlayers()) {
+                    if (debugManager.isDebugOptionEnabled(p, "explosion")) {
+                        p.sendMessage(ChatColor.GRAY + "[DEBUG] Explosión cancelada en región temporal. Mundo: " + loc.getWorld().getName() + ", Tipo: BlockExplodeEvent");
+                    }
+                }
+                return;
+            }
+        }
+    }
+
+    @EventHandler
+    public void onEntityDamageByEntity(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
+        // Bloquear explosión de End Crystals por daño
+        if (event.getEntity() instanceof EnderCrystal) {
+            Location loc = event.getEntity().getLocation();
+            RegionManager wgRegionManager = WorldGuard.getInstance()
+                .getPlatform()
+                .getRegionContainer()
+                .get(BukkitAdapter.adapt(loc.getWorld()));
+            if (wgRegionManager == null) return;
+            Set<ProtectedRegion> regions = wgRegionManager.getApplicableRegions(BukkitAdapter.asBlockVector(loc)).getRegions();
+            for (ProtectedRegion region : regions) {
+                if (region.getId().startsWith("temp_")) {
+                    event.setCancelled(true);
+                    // Debug: mostrar mundo y tipo de interacción
+                    if (event.getDamager() instanceof Player p && debugManager.isDebugOptionEnabled(p, "explosion")) {
+                        p.sendMessage(ChatColor.GRAY + "[DEBUG] Interacción con End Crystal bloqueada en región temporal. Mundo: " + loc.getWorld().getName());
+                    }
+                    return;
+                }
             }
         }
     }
